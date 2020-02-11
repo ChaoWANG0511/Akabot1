@@ -1,18 +1,13 @@
-import pandas as pd
-
-#dsd = pd.read_excel('C:/Users/chaow/PycharmProjects/Akabot/DSD100subset/dsd100.xlsx')
-#print(dsd.Style.value_counts())
-
 import numpy as np
 from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
 from keras.models import Model
 
-#path_list = ['DSD100subset/Mixtures/Dev/055/mixture.wav', 'DSD100subset/Sources/Dev/055/vocals.wav']
-
 import os.path
 import conversion
 import data
+import console
 import os
+
 
 def listdirInMac(path):
     os_list = os.listdir(path)
@@ -20,6 +15,7 @@ def listdirInMac(path):
         if item.startswith('.') and os.path.isfile(os.path.join(path, item)):
             os_list.remove(item)
     return os_list
+
 
 # 定义一个函数，path为你的路径
 def traversalDir_FirstDir(path):
@@ -40,6 +36,7 @@ def traversalDir_FirstDir(path):
             value = os.path.join(m, track)
             dict[h[1]].append(value)
     return dict
+
 
 mix_path = traversalDir_FirstDir('DSD100subset/Mixtures/Dev')
 sou_path = traversalDir_FirstDir('DSD100subset/Sources/Dev')
@@ -65,19 +62,19 @@ def preprocessing(all_path_para, fftWindowSize=1536, SLICE_SIZE=128):
 
             # chop into slices so everything's the same size in a batch 切为模型输入尺寸
             dim = SLICE_SIZE
-            Slices = data.chop(spectrogram, dim)   # 114个128*128
+            Slices = data.chop(spectrogram, dim)  # 114个128*128
             print(len(Slices))
             if 'mixture' in path:
                 x.extend(Slices)
-            elif 'vocals' in path:
+            else:
                 y.extend(Slices)
 
     x = np.array(x)[:, :, :, np.newaxis]
     y = np.array(y)[:, :, :, np.newaxis]
-    return [x,y]
+    return [x, y]
 
 
-[x,y] = preprocessing(all_path, fftWindowSize=1536, SLICE_SIZE=128)
+[x, y] = preprocessing(all_path, fftWindowSize=1536, SLICE_SIZE=128)
 print(x.shape)
 
 
@@ -92,7 +89,8 @@ def valid(trainingSplit=0.9):
 def trainModel(epochs=6, batch=8):
     mashup = Input(shape=(None, None, 1), name='input')  # shape不含batch size, None意味着可以随便取
     convA = Conv2D(64, 3, activation='relu', padding='same')(mashup)  # 64个filter, 每个都是3*3, 输入padding加0至输出大小等于输入
-    conv = Conv2D(64, 4, strides=2, activation='relu', padding='same', use_bias=False)(convA)  # 默认True, 但这层不用bias vector
+    conv = Conv2D(64, 4, strides=2, activation='relu', padding='same', use_bias=False)(
+        convA)  # 默认True, 但这层不用bias vector
     conv = BatchNormalization()(conv)
 
     convB = Conv2D(64, 3, activation='relu', padding='same')(conv)
@@ -124,14 +122,14 @@ def trainModel(epochs=6, batch=8):
 
     model = m
 
-
     xTrain, yTrain = train()
     xValid, yValid = valid()
 
     model.fit(xTrain, yTrain, batch_size=batch, epochs=epochs, validation_data=(xValid, yValid))
-    weightPath = 'weights' + ".h5"
+    weightPath = 'weights_cus' + ".h5"
     model.save_weights(weightPath, overwrite=True)
 
 
 trainModel()
+
 
