@@ -1,8 +1,3 @@
-import pandas as pd
-
-#dsd = pd.read_excel('C:/Users/chaow/PycharmProjects/Akabot/DSD100subset/dsd100.xlsx')
-#print(dsd.Style.value_counts())
-
 import numpy as np
 from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
 from keras.models import Model
@@ -12,7 +7,16 @@ from keras.models import Model
 import os.path
 import conversion
 import data
+import console
 import os
+
+
+def listdirInMac(path):
+    os_list = os.listdir(path)
+    for item in os_list:
+        if item.startswith('.') and os.path.isfile(os.path.join(path, item)):
+            os_list.remove(item)
+    return os_list
 
 
 # 定义一个函数，path为你的路径
@@ -22,13 +26,13 @@ def traversalDir_FirstDir(path):
     dict = {}
     # 获取该目录下的所有文件夹目录, 每个歌的文件夹
 
-    files = os.listdir(path)
+    files = listdirInMac(path)
     for file in files:
         # 得到该文件下所有目录的路径
         m = os.path.join(path, file)
         h = os.path.split(m)
         dict[h[1]] = []
-        song_wav = os.listdir(m)
+        song_wav = listdirInMac(m)
         m = m + '/'
         for track in song_wav:
             value = os.path.join(m, track)
@@ -46,12 +50,12 @@ for key in all_path.keys():
 print(all_path)
 
 
-def preprocessing(all_path_para=all_path, fftWindowSize=1536, SLICE_SIZE=128):
+def preprocessing(all_path_para, fftWindowSize=1536, SLICE_SIZE=128):
     x = []
     y = []
 
     for key in all_path_para:
-        path_list = [all_path[key][0], all_path[key][-1]]
+        path_list = [all_path_para[key][0], all_path_para[key][-1]]
 
         for path in path_list:
             audio, sampleRate = conversion.loadAudioFile(path)
@@ -60,7 +64,7 @@ def preprocessing(all_path_para=all_path, fftWindowSize=1536, SLICE_SIZE=128):
 
             # chop into slices so everything's the same size in a batch 切为模型输入尺寸
             dim = SLICE_SIZE
-            Slices = data.chop(spectrogram, dim)   # 114个128*128
+            Slices = data.chop(spectrogram, dim)  # 114个128*128
             print(len(Slices))
             if 'mixture' in path:
                 x.extend(Slices)
@@ -123,9 +127,10 @@ def trainModel(epochs=6, batch=8):
     xValid, yValid = valid()
 
     model.fit(xTrain, yTrain, batch_size=batch, epochs=epochs, validation_data=(xValid, yValid))
-    weightPath = 'C:\\Users\\chaow\\PycharmProjects\\Akabot\\outweight' + ".h5"
+    weightPath = 'weights_cus' + ".h5"
     model.save_weights(weightPath, overwrite=True)
 
 
 trainModel()
+
 
