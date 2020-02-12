@@ -17,19 +17,17 @@ import string
 import os
 
 import numpy as np
-from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
-from keras.models import Model
-
 import console
 import conversion
 from data import Data
 from Model import creat_model
+from unet import apply_unet
 
 class AcapellaBot:
     # 定义model
     def __init__(self):
 
-        m = creat_model()
+        m = apply_unet()
         console.log("Model has", m.count_params(), "params")
 
         m.compile(loss='mean_squared_error', optimizer='adam')

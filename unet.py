@@ -205,13 +205,7 @@ def apply_unet():
 
     m = Model(inputs=input_tensor, outputs=output)
 
-    m.compile(loss='mean_squared_error', optimizer='adam')
-
-    model = m
-
-    model.fit(xTrain, yTrain, batch_size=30, epochs=10, validation_data=(xValid, yValid))
-    weightPath = 'C:\\Users\\chaow\\PycharmProjects\\Akabot\\outweight' + ".h5"
-    model.save_weights(weightPath, overwrite=True)
+    return m
 
 
 apply_unet()
