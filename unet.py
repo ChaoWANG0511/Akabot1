@@ -11,7 +11,6 @@ estimated sound spectrogram as output.
 """
 
 # pylint: disable=import-error
-import tensorflow as tf
 from functools import partial
 from keras.layers import (
     BatchNormalization,
@@ -21,99 +20,10 @@ from keras.layers import (
     Dropout,
     multiply,
     ReLU)
-from keras.layers import Input
 from keras.initializers import he_uniform
-from keras.models import Model
-# pylint: enable=import-error
 
-
-import numpy as np
 from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
 from keras.models import Model
-
-
-import os.path
-import conversion
-import data
-import os
-
-
-# 定义一个函数，path为你的路径
-def traversalDir_FirstDir(path):
-    # path 输入是 Dev/Test
-    # 定义一个字典，用来存储结果————歌名：路径
-    dict = {}
-    # 获取该目录下的所有文件夹目录, 每个歌的文件夹
-
-    files = os.listdir(path)
-    for file in files:
-        # 得到该文件下所有目录的路径
-        m = os.path.join(path, file)
-        h = os.path.split(m)
-        dict[h[1]] = []
-        song_wav = os.listdir(m)
-        m = m + '/'
-        for track in song_wav:
-            value = os.path.join(m, track)
-            dict[h[1]].append(value)
-    return dict
-
-mix_path = traversalDir_FirstDir('DSD100subset/Mixtures/Dev/')
-
-sou_path = traversalDir_FirstDir('DSD100subset/Sources/Dev/')
-
-all_path = mix_path.copy()
-for key in all_path.keys():
-    all_path[key].extend(sou_path[key])
-
-print(all_path)
-
-
-def preprocessing(all_path_para=all_path, fftWindowSize=1536, SLICE_SIZE=128):
-    x = []
-    y = []
-
-    for key in all_path_para:
-        path_list = [all_path[key][0], all_path[key][-1]]
-
-        for path in path_list:
-            audio, sampleRate = conversion.loadAudioFile(path)
-            spectrogram, phase = conversion.audioFileToSpectrogram(audio, fftWindowSize)
-            print(spectrogram.shape)
-
-            # chop into slices so everything's the same size in a batch 切为模型输入尺寸
-            dim = SLICE_SIZE
-            Slices = data.chop(spectrogram, dim)   # 114个128*128
-            print(len(Slices))
-            if 'mixture' in path:
-                x.extend(Slices)
-            else:
-                y.extend(Slices)
-
-    x = np.array(x)[:, :, :, np.newaxis]
-    y = np.array(y)[:, :, :, np.newaxis]
-
-    x = np.asarray(x)
-    y = np.asarray(y)
-    return [x,y]
-
-
-[x,y] = preprocessing(all_path_para=all_path, fftWindowSize=1536, SLICE_SIZE=128)
-print(x.shape)
-
-
-def train(trainingSplit=0.9):
-    return (x[:int(len(x) * trainingSplit)], y[:int(len(y) * trainingSplit)])
-
-
-def valid(trainingSplit=0.9):
-    return (x[int(len(x) * trainingSplit):], y[int(len(y) * trainingSplit):])
-
-
-xTrain, yTrain = train()
-xValid, yValid = valid()
-
-
 
 def apply_unet():
     """ Apply a convolutionnal U-net to model a single instrument (one U-net

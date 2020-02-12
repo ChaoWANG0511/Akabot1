@@ -84,6 +84,7 @@ class Data:
         self.trainingSplit = trainingSplit
         self.x = []
         self.y = []
+        self.peakDownscaleFactor = 4
         self.load_customized()
 
     # x,y 按trainingSplit比例分训练集验证集
@@ -185,10 +186,11 @@ class Data:
                     audio, sampleRate = conversion.loadAudioFile(path)
                     spectrogram, phase = conversion.audioFileToSpectrogram(audio, self.fftWindowSize)
 
+                    # expandedSpectrogram = conversion.expandToGrid(spectrogram, self.peakDownscaleFactor)
+
                     # chop into slices so everything's the same size in a batch 切为模型输入尺寸
                     dim = SLICE_SIZE
                     Slices = chop(spectrogram, dim)  # 114个128*128
-                    print(len(Slices))
                     if 'mixture' in path:
                         self.x.extend(Slices)
                     else:
