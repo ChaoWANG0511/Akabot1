@@ -1,22 +1,9 @@
 import numpy as np
-from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
-from keras.models import Model
-
-#path_list = ['DSD100subset/Mixtures/Dev/055/mixture.wav', 'DSD100subset/Sources/Dev/055/vocals.wav']
 
 import os.path
 import conversion
 import data
 import os
-
-from keras.models import Sequential
-from keras.layers import LSTM
-from keras.layers import Bidirectional
-from keras.layers import Dense
-
-from keras.layers import TimeDistributed
-from keras.layers import Flatten
-from keras.layers import Reshape
 
 import tensorflow as tf
 
