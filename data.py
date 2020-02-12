@@ -184,7 +184,6 @@ class Data:
                 for path in path_list:
                     audio, sampleRate = conversion.loadAudioFile(path)
                     spectrogram, phase = conversion.audioFileToSpectrogram(audio, self.fftWindowSize)
-                    print(spectrogram.shape)
 
                     # chop into slices so everything's the same size in a batch 切为模型输入尺寸
                     dim = SLICE_SIZE
