@@ -22,6 +22,33 @@ import h5py
 import console
 import conversion
 
+def listdirInMac(path):
+    os_list = os.listdir(path)
+    for item in os_list:
+        if item.startswith('.') and os.path.isfile(os.path.join(path, item)):
+            os_list.remove(item)
+    return os_list
+
+def traversalDir_FirstDir(path):
+    # path 输入是 Dev/Test
+    # 定义一个字典，用来存储结果————歌名：路径
+    dict = {}
+    # 获取该目录下的所有文件夹目录, 每个歌的文件夹
+
+    files = listdirInMac(path)
+    for file in files:
+        # 得到该文件下所有目录的路径
+        m = os.path.join(path, file)
+        h = os.path.split(m)
+        dict[h[1]] = []
+        song_wav = listdirInMac(m)
+        m = m + '/'
+        for track in song_wav:
+            value = os.path.join(m, track)
+            dict[h[1]].append(value)
+    return dict
+
+
 # Modify these functions if your data is in a different format
 def keyOfFile(fileName):
     firstToken = int(fileName.split()[0])   # camelot key as key：B小调
@@ -29,6 +56,7 @@ def keyOfFile(fileName):
         return firstToken
     console.warn("File", fileName, "doesn't specify its key, ignoring..")
     return None
+
 
 def fileIsAcapella(fileName):
     return "acapella" in fileName.lower()    #acapella在文件名里
@@ -47,14 +75,16 @@ def chop(matrix, scale):
             slices.append(s)  # 切为很多小块，每块scale*scale，存到slices列表， 使得模型的输入都一样大
     return slices
 
+
 class Data:
+
     def __init__(self, inPath, fftWindowSize=1536, trainingSplit=0.9):
         self.inPath = inPath
         self.fftWindowSize = fftWindowSize
         self.trainingSplit = trainingSplit
         self.x = []
         self.y = []
-        self.load()
+        self.load_customized()
 
     # x,y 按trainingSplit比例分训练集验证集
     def train(self):
@@ -133,6 +163,46 @@ class Data:
                 h5f.create_dataset("y", data=self.y)
                 h5f.close()
 
+    def load_customized(self, saveDataAsH5=False):
+
+        h5Path = os.path.join(self.inPath, "data.h5")
+        if os.path.isfile(h5Path):
+            h5f = h5py.File(h5Path, "r")  # 只读h5文件
+            self.x = h5f["x"][:]  # 键x,y
+            self.y = h5f["y"][:]
+        else:
+            mix_path = traversalDir_FirstDir(self.inPath + '/Mixtures/Dev')
+            sou_path = traversalDir_FirstDir(self.inPath + '/Sources/Dev')
+            all_path = mix_path.copy()
+
+            for key in all_path.keys():
+                all_path[key].extend(sou_path[key])
+
+            for key in all_path:
+                path_list = [all_path[key][0], all_path[key][-1]]
+
+                for path in path_list:
+                    audio, sampleRate = conversion.loadAudioFile(path)
+                    spectrogram, phase = conversion.audioFileToSpectrogram(audio, self.fftWindowSize)
+                    print(spectrogram.shape)
+
+                    # chop into slices so everything's the same size in a batch 切为模型输入尺寸
+                    dim = SLICE_SIZE
+                    Slices = chop(spectrogram, dim)  # 114个128*128
+                    print(len(Slices))
+                    if 'mixture' in path:
+                        self.x.extend(Slices)
+                    else:
+                        self.y.extend(Slices)
+
+            self.x = np.array(self.x)[:, :, :, np.newaxis]
+            self.y = np.array(self.y)[:, :, :, np.newaxis]
+
+            if saveDataAsH5:
+                h5f = h5py.File(h5Path, "w")
+                h5f.create_dataset("x", data=self.x)
+                h5f.create_dataset("y", data=self.y)
+                h5f.close()
 
 if __name__ == "__main__":
     # Simple testing code to use while developing
