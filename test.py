@@ -2,6 +2,8 @@ import numpy as np
 from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
 from keras.models import Model
 
+#path_list = ['DSD100subset/Mixtures/Dev/055/mixture.wav', 'DSD100subset/Sources/Dev/055/vocals.wav']
+
 import os.path
 import conversion
 import data
@@ -37,9 +39,9 @@ def traversalDir_FirstDir(path):
             dict[h[1]].append(value)
     return dict
 
+mix_path = traversalDir_FirstDir('DSD100subset/Mixtures/Dev/')
 
-mix_path = traversalDir_FirstDir('DSD100subset/Mixtures/Dev')
-sou_path = traversalDir_FirstDir('DSD100subset/Sources/Dev')
+sou_path = traversalDir_FirstDir('DSD100subset/Sources/Dev/')
 
 all_path = mix_path.copy()
 for key in all_path.keys():
@@ -71,10 +73,10 @@ def preprocessing(all_path_para, fftWindowSize=1536, SLICE_SIZE=128):
 
     x = np.array(x)[:, :, :, np.newaxis]
     y = np.array(y)[:, :, :, np.newaxis]
-    return [x, y]
+    return [x,y]
 
 
-[x, y] = preprocessing(all_path, fftWindowSize=1536, SLICE_SIZE=128)
+[x,y] = preprocessing(all_path_para=all_path, fftWindowSize=1536, SLICE_SIZE=128)
 print(x.shape)
 
 
@@ -89,8 +91,7 @@ def valid(trainingSplit=0.9):
 def trainModel(epochs=6, batch=8):
     mashup = Input(shape=(None, None, 1), name='input')  # shape不含batch size, None意味着可以随便取
     convA = Conv2D(64, 3, activation='relu', padding='same')(mashup)  # 64个filter, 每个都是3*3, 输入padding加0至输出大小等于输入
-    conv = Conv2D(64, 4, strides=2, activation='relu', padding='same', use_bias=False)(
-        convA)  # 默认True, 但这层不用bias vector
+    conv = Conv2D(64, 4, strides=2, activation='relu', padding='same', use_bias=False)(convA)  # 默认True, 但这层不用bias vector
     conv = BatchNormalization()(conv)
 
     convB = Conv2D(64, 3, activation='relu', padding='same')(conv)
