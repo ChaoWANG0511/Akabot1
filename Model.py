@@ -1,16 +1,5 @@
-import argparse
-import random
-import string
-import os
-
-import numpy as np
 from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
 from keras.models import Model
-
-import console
-import conversion
-from data import Data
-
 
 def creat_model():
     mashup = Input(shape=(None, None, 1), name='input')  # shape不含batch size, None意味着可以随便取
