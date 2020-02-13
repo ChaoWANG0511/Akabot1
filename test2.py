@@ -99,6 +99,7 @@ def train_blstm(input_tensor, output_name='output'):
     units = 250
     kernel_initializer = he_uniform(seed=50)
     flatten_input = TimeDistributed(Flatten())((input_tensor))
+    print('flatten_iput',flatten_input.shape)
 
     def create_bidirectional():
         return Bidirectional(
@@ -125,33 +126,10 @@ def train_blstm(input_tensor, output_name='output'):
 #print(yTrain.shape)
 
 output = train_blstm(xTrain, output_name='output')
-cross_entropy = -tf.reduce_mean(yTrain * tf.log(tf.clip_by_value(output, 1e-10, 1.0)))
-optimizer = tf.train.AdamOptimizer(learning_rate=0.1).minimize(cross_entropy)  # Adam Optimizer
+print('output',output.shape)
+#cross_entropy = -tf.reduce_mean(yTrain * tf.log(tf.clip_by_value(output, 1e-10, 1.0)))
+#optimizer = tf.train.AdamOptimizer(learning_rate=0.1).minimize(cross_entropy)  # Adam Optimizer
 
 
-sess = tf.Session()
-sess.run(tf.initialize_all_variables())
 
-
-def testing_func(testing_data, testing_label, sess):
-    loss_ = sess.run([loss], feed_dict={X_: testing_data, Y: testing_label})
-    print('loss: ', loss_)
-
-
-print()
-print("开始训练")
-for i in range(20):
-    print()
-    print("训练轮数: ", i)
-    _, loss_ = sess.run([optimizer, loss], feed_dict={X_: xTrain, Y: yTrain})
-
-    print("#######################################")
-    print("testing: ")
-    print("training集: ")
-    testing_func(xTrain, yTrain, sess)
-    print("#######################################")
-
-    print("validation集: ")
-    testing_func(xValid, yValid, sess)
-    print("#######################################")
 

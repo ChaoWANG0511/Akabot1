@@ -8,16 +8,13 @@ from math import ceil
 import argparse
 import console
 
-#导入数据 mixture和vocal
 def loadAudioFile(filePath):
     audio, sampleRate = librosa.load(filePath)  # Load an audio file as a floating point time series， 默认采样率sr=22050
     return audio, sampleRate
 
-
 def saveAudioFile(audioFile, filePath, sampleRate):
     librosa.output.write_wav(filePath, audioFile, sampleRate, norm=True)
     console.info("Wrote audio file to", filePath)
-
 
 def expandToGrid(spectrogram, gridSize):
     # crop along both axes
@@ -33,6 +30,59 @@ def audioFileToSpectrogram(audioFile, fftWindowSize):
     phase = np.imag(spectrogram)       # 为什么不是np.angle？
     amplitude = np.log1p(np.abs(spectrogram))   # np.abs(D[f, t]) is the magnitude of frequency bin f at frame帧 t， loge(1+ )
     return amplitude, phase
+
+
+
+
+
+
+
+import tensorflow as tf
+
+from tensorflow.contrib.signal import stft, hann_window
+# pylint: enable=import-error
+
+__email__ = 'research@deezer.com'
+__author__ = 'Deezer Research'
+__license__ = 'MIT License'
+
+
+def compute_spectrogram_tf(
+        waveform,
+        frame_length=2048, frame_step=512,
+        spec_exponent=1., window_exponent=1.):
+    """ Compute magnitude / power spectrogram from waveform as
+    a n_samples x n_channels tensor.
+
+    :param waveform:        Input waveform as (times x number of channels)
+                            tensor.
+    :param frame_length:    Length of a STFT frame to use.
+    :param frame_step:      HOP between successive frames.
+    :param spec_exponent:   Exponent of the spectrogram (usually 1 for
+                            magnitude spectrogram, or 2 for power spectrogram).
+    :param window_exponent: Exponent applied to the Hann windowing function
+                            (may be useful for making perfect STFT/iSTFT
+                            reconstruction).
+    :returns:   Computed magnitude / power spectrogram as a
+                (T x F x n_channels) tensor.
+    """
+    stft_tensor = tf.transpose(
+        stft(
+            tf.transpose(waveform),
+            frame_length,
+            frame_step,
+            window_fn=lambda f, dtype: hann_window(
+                f,
+                periodic=True,
+                dtype=waveform.dtype) ** window_exponent),
+        perm=[1, 2, 0])
+    return np.abs(stft_tensor) ** spec_exponent
+
+
+
+
+
+
 
 # This is the nutty one
 def spectrogramToAudioFile(spectrogram, fftWindowSize, phaseIterations=10, phase=None):

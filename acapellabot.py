@@ -17,85 +17,60 @@ import string
 import os
 
 import numpy as np
-from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
-from keras.models import Model
 import console
 import conversion
 from data import Data
-
+from Model import creat_model
+from unet import apply_unet
+from lstm import blstm
+from keras.models import model_from_json
 
 class AcapellaBot:
     # 定义model
     def __init__(self):
-        mashup = Input(shape=(None, None, 1), name='input')   # shape不含batch size, None意味着可以随便取  混音
-        convA = Conv2D(64, 3, activation='relu', padding='same')(mashup)  # 64个filter, 每个都是3*3, 输入padding加0至输出大小等于输入
-        conv = Conv2D(64, 4, strides=2, activation='relu', padding='same', use_bias=False)(convA)  # 默认True, 但这层不用bias vector
-        conv = BatchNormalization()(conv)
 
-        convB = Conv2D(64, 3, activation='relu', padding='same')(conv)
-        conv = Conv2D(64, 4, strides=2, activation='relu', padding='same', use_bias=False)(convB)
-        conv = BatchNormalization()(conv)  # 不改变尺寸
-
-        conv = Conv2D(128, 3, activation='relu', padding='same')(conv)
-        conv = Conv2D(128, 3, activation='relu', padding='same', use_bias=False)(conv)
-        conv = BatchNormalization()(conv)
-        conv = UpSampling2D((2, 2))(conv)  # 行重复2次，列重复2次。默认channels_last (default)：(batch, height, width, channels)   为什么大小？
-
-        conv = Concatenate()([conv, convB])  # 默认沿axis=-1
-        conv = Conv2D(64, 3, activation='relu', padding='same')(conv)
-        conv = Conv2D(64, 3, activation='relu', padding='same', use_bias=False)(conv)
-        conv = BatchNormalization()(conv)
-        conv = UpSampling2D((2, 2))(conv)
-
-        conv = Concatenate()([conv, convA])
-        conv = Conv2D(64, 3, activation='relu', padding='same')(conv)
-        conv = Conv2D(64, 3, activation='relu', padding='same')(conv)
-
-        conv = Conv2D(32, 3, activation='relu', padding='same')(conv)
-        conv = Conv2D(1, 3, activation='relu', padding='same')(conv)   # 输出只1channel
-        acapella = conv
-
-        m = Model(inputs=mashup, outputs=acapella)
-
+        #m = creat_model()
+        #m = apply_unet()
+        m = blstm()
         console.log("Model has", m.count_params(), "params")
 
-        m.compile(loss='mean_squared_error', optimizer='adam')  #配置学习过程
+        m.compile(loss='mean_squared_error', optimizer='adam')
 
         self.model = m
         # need to know so that we can avoid rounding errors with spectrogram
         # this should represent how much the input gets downscaled
         # in the middle of the network
-        self.peakDownscaleFactor = 4
+        self.peakDownscaleFactor = 64
 
     # 训练验证model.fit, 给data, epochs, batch, 是否存权重
     def train(self, data, epochs, batch=8):
         xTrain, yTrain = data.train()
         xValid, yValid = data.valid()
-        while epochs > 0:
-            console.log("Training for", epochs, "epochs on", len(xTrain), "examples")   # 打印
+        xTrain = np.squeeze(xTrain)
+        yTrain = np.squeeze(yTrain)
+        xValid = np.squeeze(xValid)
+        yValid = np.squeeze(yValid)
 
-            self.model.fit(xTrain, yTrain, batch_size=batch, epochs=epochs, validation_data=(xValid, yValid))
+        console.log("Training for", epochs, "epochs on", len(xTrain), "examples")   # 打印
 
-            console.notify(str(epochs) + " Epochs Complete!", "Training on", data.inPath, "with size", batch)
+        self.model.fit(xTrain, yTrain, batch_size=batch, epochs=epochs, validation_data=(xValid, yValid))
+        self.model.summary()
 
-            while True:
-                try:
-                    epochs = int(input("How many more epochs should we train for? "))    # 输入：epochs个数
-                    break
-                except ValueError:
-                    console.warn("Oops, number parse failed. Try again, I guess?")
-            if epochs > 0:
-                save = input("Should we save intermediate weights [y/n]? ")       # 输入：是否存储训练中的权重
-                if not save.lower().startswith("n"):                # 存
-                    weightPath = ''.join(random.choice(string.digits) for _ in range(16)) + ".h5"
-                    console.log("Saving intermediate weights to", weightPath)
-                    self.saveWeights(weightPath)
+        console.notify(str(epochs) + " Epochs Complete!", "Training on", data.inPath, "with size", batch)
+
+        weightPath = ''.join(random.choice(string.digits) for _ in range(16)) + ".h5"
+        console.log("Saving intermediate weights to", weightPath)
+        self.saveWeights(weightPath)
 
 
     def saveWeights(self, path):
         self.model.save_weights(path, overwrite=True)
     def loadWeights(self, path):
-        self.model.load_weights(path)
+        self.model.load_weights(path,by_name=True)
+        #json_string = self.model.to_json()
+        #self.model = model_from_json(json_string)
+
+
 
     # 预测model， 数据处理stft
     def isolateVocals(self, path, fftWindowSize, phaseIterations=10):
@@ -108,7 +83,8 @@ class AcapellaBot:
         # 幅值 进模型 得幅值
         # newSpectrogram = self.model.predict(conversion.expandToGrid(spectrogram, self.peakDownscaleFactor)[np.newaxis, :, :, np.newaxis])[0][:spectrogram.shape[0], :spectrogram.shape[1]]
         expandedSpectrogram = conversion.expandToGrid(spectrogram, self.peakDownscaleFactor)   # 幅值放大一些by加0，为了能整除peakDownscaleFactor
-        expandedSpectrogramWithBatchAndChannels = expandedSpectrogram[np.newaxis, :, :, np.newaxis]  # 第一维加batch，第四维加channel
+        #expandedSpectrogramWithBatchAndChannels = expandedSpectrogram[np.newaxis, :, :, np.newaxis]  # 第一维加batch，第四维加channel
+        expandedSpectrogramWithBatchAndChannels = np.squeeze(expandedSpectrogramWithBatchAndChannels)
         predictedSpectrogramWithBatchAndChannels = self.model.predict(expandedSpectrogramWithBatchAndChannels)   # 放入model做预测
         predictedSpectrogram = predictedSpectrogramWithBatchAndChannels[0, :, :, 0] # o /// o   # 取预测结果的第0batch，第0channel,即再变回幅值
         newSpectrogram = predictedSpectrogram[:spectrogram.shape[0], :spectrogram.shape[1]]    # 幅值缩小为原来的尺寸
@@ -135,7 +111,7 @@ if __name__ == "__main__":
     parser.add_argument("--fft", default=1536, type=int, help="Size of FFT windows")
     parser.add_argument("--data", default=None, type=str, help="Path containing training data")
     parser.add_argument("--split", default=0.9, type=float, help="Proportion of the data to train on")
-    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs to train.")
+    parser.add_argument("--epochs", default=1, type=int, help="Number of epochs to train.")
     parser.add_argument("--weights", default="weights.h5", type=str, help="h5 file to read/write weights to")
     parser.add_argument("--batch", default=8, type=int, help="Batch size for training")
     parser.add_argument("--phase", default=10, type=int, help="Phase iterations for reconstruction")
