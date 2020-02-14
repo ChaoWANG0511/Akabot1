@@ -27,7 +27,7 @@ class AcapellaBot:
     # 定义model
     def __init__(self):
 
-        m = creat_model()
+        m = apply_unet()
         console.log("Model has", m.count_params(), "params")
 
         m.compile(loss='mean_squared_error', optimizer='adam')
@@ -36,7 +36,7 @@ class AcapellaBot:
         # need to know so that we can avoid rounding errors with spectrogram
         # this should represent how much the input gets downscaled
         # in the middle of the network
-        self.peakDownscaleFactor = 4
+        self.peakDownscaleFactor = 128
 
     # 训练验证model.fit, 给data, epochs, batch, 是否存权重
     def train(self, data, epochs, batch=8):
