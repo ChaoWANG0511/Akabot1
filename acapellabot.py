@@ -17,13 +17,11 @@ import string
 import os
 
 import numpy as np
-from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
-from keras.models import Model
-
 import console
 import conversion
 from data import Data
 from Model import creat_model
+from unet import apply_unet
 
 class AcapellaBot:
     # 定义model
@@ -44,25 +42,16 @@ class AcapellaBot:
     def train(self, data, epochs, batch=8):
         xTrain, yTrain = data.train()
         xValid, yValid = data.valid()
-        while epochs > 0:
-            console.log("Training for", epochs, "epochs on", len(xTrain), "examples")   # 打印
 
-            self.model.fit(xTrain, yTrain, batch_size=batch, epochs=epochs, validation_data=(xValid, yValid))
+        console.log("Training for", epochs, "epochs on", len(xTrain), "examples")   # 打印
 
-            console.notify(str(epochs) + " Epochs Complete!", "Training on", data.inPath, "with size", batch)
+        self.model.fit(xTrain, yTrain, batch_size=batch, epochs=epochs, validation_data=(xValid, yValid))
 
-            while True:
-                try:
-                    epochs = int(input("How many more epochs should we train for? "))    # 输入：epochs个数
-                    break
-                except ValueError:
-                    console.warn("Oops, number parse failed. Try again, I guess?")
-            if epochs > 0:
-                save = input("Should we save intermediate weights [y/n]? ")       # 输入：是否存储训练中的权重
-                if not save.lower().startswith("n"):                # 存
-                    weightPath = ''.join(random.choice(string.digits) for _ in range(16)) + ".h5"
-                    console.log("Saving intermediate weights to", weightPath)
-                    self.saveWeights(weightPath)
+        console.notify(str(epochs) + " Epochs Complete!", "Training on", data.inPath, "with size", batch)
+
+        weightPath = ''.join(random.choice(string.digits) for _ in range(16)) + ".h5"
+        console.log("Saving intermediate weights to", weightPath)
+        self.saveWeights(weightPath)
 
 
     def saveWeights(self, path):
