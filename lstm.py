@@ -81,6 +81,10 @@ print(x.shape)  # samples, time steps, and features.
 
 
 model = Sequential()
+np.squeeze()
+input_tensor = Input(shape=(None, None, 1), name='input')
+
+
 model.add(Bidirectional(LSTM(32, input_shape = (128,128), return_sequences=True)))
 model.add(Bidirectional(LSTM(12, return_sequences=True)))
 model.add(Bidirectional(LSTM(6, return_sequences=False)))
@@ -107,7 +111,18 @@ model.save_weights(weightPath, overwrite=True)
 #model.fit(x, y, epochs=10, batch_size=30, verbose=2)
 
 
+conv7 = conv2d_factory(1, (5, 5))(_)
 
+co7resh = squeeze(conv7, -1)
+print(co7resh)
+
+shape_unet_bottom = conv6.shape
+
+ls1 = Bidirectional(LSTM(32, return_sequences=True))(co7resh)
+ls2 = Bidirectional(LSTM(12, return_sequences=True))(ls1)
+ls3 = Bidirectional(LSTM(6, return_sequences=False))(ls2)
+ls4 = Dense(shape_unet_bottom[1] * shape_unet_bottom[2])(ls3)
+ls5 = Reshape(shape_unet_bottom)(ls4)
 
 
 
