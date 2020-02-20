@@ -1,16 +1,13 @@
-import librosa
-import tensorflow as tf
-from tensorflow.contrib.signal import stft, hann_window
-import os
-from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
-from keras.models import Model
-from math import ceil
 import argparse
+import os
 import random
 import string
-import os
-import numpy as np
 import sys
+from math import ceil
+
+import librosa
+import numpy as np
+
 sys.path.append("..")
 import conversion
 from data import Data
@@ -151,7 +148,7 @@ if __name__ == "__main__":
     parser.add_argument("--data", default=None, type=str, help="Path containing training data")
     parser.add_argument("--split", default=0.9, type=float, help="Proportion of the data to train on")
     parser.add_argument("--epochs", default=3, type=int, help="Number of epochs to train.")
-    parser.add_argument("--weights", default="../weights.h5", type=str, help="h5 file to read/write weights to")
+    parser.add_argument("--weights", default="./weights.h5", type=str, help="h5 file to read/write weights to")
     parser.add_argument("--batch", default=1, type=int, help="Batch size for training")
     parser.add_argument("--phase", default=10, type=int, help="Phase iterations for reconstruction")
     parser.add_argument("--load", action='store_true', help="Load previous weights file before starting")
