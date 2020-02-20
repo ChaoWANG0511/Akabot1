@@ -1,33 +1,19 @@
-"""
-Acapella extraction with a CNN
-
-Typical usage:
-    python acapellabot.py song.wav
-    => Extracts acapella from <song.wav> to <song (Acapella Attempt).wav> using default weights   分离
-
-    python acapellabot.py --data input_folder --batch 32 --weights new_model_iteration.h5
-    => Trains a new model based on song/acapella pairs in the folder <input_folder>   训练
-       and saves weights to <new_model_iteration.h5> once complete.
-       See data.py for data specifications.
-"""
-
 import argparse
 import random
 import string
 import os
-
 import numpy as np
 import console
-import conversion
 from data import Data
 from Model import creat_model
 from unet import apply_unet
+import conversion
 
 class AcapellaBot:
     # 定义model
     def __init__(self):
 
-        m = creat_model()
+        m = apply_unet()
         console.log("Model has", m.count_params(), "params")
 
         m.compile(loss='mean_squared_error', optimizer='adam')
@@ -39,7 +25,7 @@ class AcapellaBot:
         self.peakDownscaleFactor = 4
 
     # 训练验证model.fit, 给data, epochs, batch, 是否存权重
-    def train(self, data, epochs, batch=8):
+    def train(self, data, epochs, batch=1):
         xTrain, yTrain = data.train()
         xValid, yValid = data.valid()
 
@@ -93,15 +79,18 @@ class AcapellaBot:
 if __name__ == "__main__":
     # if data folder is specified, create a new data object and train on the data
     # if input audio is specified, infer on the input
-    parser = argparse.ArgumentParser(description="Acapella extraction with a convolutional neural network")
+    parser = argparse.ArgumentParser(description="Acapella extraction with unet")
     parser.add_argument("--fft", default=1536, type=int, help="Size of FFT windows")
     parser.add_argument("--data", default=None, type=str, help="Path containing training data")
     parser.add_argument("--split", default=0.9, type=float, help="Proportion of the data to train on")
-    parser.add_argument("--epochs", default=10, type=int, help="Number of epochs to train.")
+    parser.add_argument("--epochs", default=3, type=int, help="Number of epochs to train.")
     parser.add_argument("--weights", default="weights.h5", type=str, help="h5 file to read/write weights to")
-    parser.add_argument("--batch", default=8, type=int, help="Batch size for training")
+    parser.add_argument("--batch", default=1, type=int, help="Batch size for training")
     parser.add_argument("--phase", default=10, type=int, help="Phase iterations for reconstruction")
+    parser.add_argument("--ratio_overlap", default=0.2, help="set overlap ratio for training slices")
+    parser.add_argument("--time_scale", default=256, help="set a time scale to cut the spectrogram into slices")
     parser.add_argument("--load", action='store_true', help="Load previous weights file before starting")
+
     parser.add_argument("files", nargs="*", default=[])
 
     args = parser.parse_args()

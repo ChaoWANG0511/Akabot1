@@ -127,7 +127,7 @@ def trainModel(epochs=6, batch=8):
     xValid, yValid = valid()
 
     model.fit(xTrain, yTrain, batch_size=batch, epochs=epochs, validation_data=(xValid, yValid))
-    weightPath = 'weights_cus' + ".h5"
+    weightPath = 'weights' + ".h5"
     model.save_weights(weightPath, overwrite=True)
 
 

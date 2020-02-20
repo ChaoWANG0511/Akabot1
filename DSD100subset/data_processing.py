@@ -1,75 +1,11 @@
 import numpy as np
-import librosa
-import tensorflow as tf
-from tensorflow.contrib.signal import stft, hann_window
 import os
 import conversion
-from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
+from keras.layers import Input, Conv2D, BatchNormalization, UpSampling2D, Concatenate
 from keras.models import Model
 from math import ceil
-'''
 
-def audioFileToSpectrogram(audioFile, fftWindowSize):
-    spectrogram = librosa.stft(audioFile, fftWindowSize)   # 返回复数值矩阵D , STFT矩阵D中的行数是（1 + 第二个参数一般2的幂n_fft / 2）
-    phase = np.imag(spectrogram)       # 为什么不是np.angle？
-    amplitude = np.log1p(np.abs(spectrogram))   # np.abs(D[f, t]) is the magnitude of frequency bin f at frame帧 t， loge(1+ )
-    return amplitude, phase
-
-def compute_spectrogram_tf(
-        waveform,
-        frame_length=2048, frame_step=512,
-        spec_exponent=1., window_exponent=1.):
-    """ Compute magnitude / power spectrogram from waveform as
-    a n_samples x n_channels tensor.
-
-    :param waveform:        Input waveform as (times x number of channels)
-                            tensor.
-    :param frame_length:    Length of a STFT frame to use.
-    :param frame_step:      HOP between successive frames.
-    :param spec_exponent:   Exponent of the spectrogram (usually 1 for
-                            magnitude spectrogram, or 2 for power spectrogram).
-    :param window_exponent: Exponent applied to the Hann windowing function
-                            (may be useful for making perfect STFT/iSTFT
-                            reconstruction).
-    :returns:   Computed magnitude / power spectrogram as a
-                (T x F x n_channels) tensor.
-    """
-    stft_tensor = tf.transpose(
-        stft(
-            tf.transpose(waveform),
-            frame_length,
-            frame_step,
-            window_fn=lambda f, dtype: hann_window(
-                f,
-                periodic=True,
-                dtype=waveform.dtype) ** window_exponent),
-        perm=[1, 2, 0])
-    return np.abs(stft_tensor) ** spec_exponent
-
-def spectrogramToAudioFile(spectrogram, phase, fftWindowSize, phaseIterations=10):
-    if phase is not None:
-        # reconstructing the new complex matrix
-        squaredAmplitudeAndSquaredPhase = np.power(spectrogram, 2)
-        squaredPhase = np.power(phase, 2)
-        unexpd = np.sqrt(np.max(squaredAmplitudeAndSquaredPhase - squaredPhase, 0))
-        amplitude = np.expm1(unexpd)
-        stftMatrix = amplitude + phase * 1j
-        audio = librosa.istft(stftMatrix)
-    else:
-        # phase reconstruction with successive approximation
-        # credit to https://dsp.stackexchange.com/questions/3406/reconstruction-of-audio-signal-from-its-absolute-spectrogram/3410#3410
-        # for the algorithm used
-        amplitude = np.exp(spectrogram) - 1   # 对应log1p
-        for i in range(phaseIterations):
-            if i == 0:
-                reconstruction = np.random.random_sample(amplitude.shape) + 1j * (2 * np.pi * np.random.random_sample(amplitude.shape) - np.pi)
-            else:
-                reconstruction = librosa.stft(audio, fftWindowSize)
-            spectrum = amplitude * np.exp(1j * np.angle(reconstruction))
-            audio = librosa.istft(spectrum)
-    return audio
-
-'''
+#trying to train a model with the original method, but with as input rectangle slices with overlaps.
 
 
 def listdirInMac(path):
@@ -109,7 +45,7 @@ def chop(matrix, time_scale, ratio_overlap):
             s = matrix[: (int(matrix.shape[0]/64))*64,
                        int(time * time_scale*(1-ratio_overlap)) :int(time * time_scale*(1-ratio_overlap))+time_scale ]
             print(s.shape)
-            slices.append(s)  # 切为很多小块，每块scale*scale，存到slices列表， 使得模型的输入都一样大
+            slices.append(s)
     return slices
 
 def expandToGrid(spectrogram, time_scale, ratio_overlap):
@@ -199,7 +135,7 @@ def trainModel(epochs=3, batch=8):
     xValid, yValid = valid()
 
     model.fit(xTrain, yTrain, batch_size=batch, epochs=epochs, validation_data=(xValid, yValid))
-    weightPath = 'weights_cus' + ".h5"
+    weightPath = '..\weights' + ".h5"
     model.save_weights(weightPath, overwrite=True)
 
 
