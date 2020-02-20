@@ -1,9 +1,10 @@
-import numpy as np
 import os
-import conversion
-from keras.layers import Input, Reshape, Lambda
-from keras.models import Model
+from functools import partial
 from math import ceil
+
+import numpy as np
+from keras.backend import int_shape, squeeze
+from keras.initializers import he_uniform
 from keras.layers import (
     BatchNormalization,
     Concatenate,
@@ -12,10 +13,11 @@ from keras.layers import (
     Dropout,
     multiply,
     ReLU)
-from functools import partial
-from keras.initializers import he_uniform
-from keras.backend import int_shape, squeeze
+from keras.layers import Input, Reshape, Lambda
 from keras.layers.convolutional_recurrent import ConvLSTM2D
+from keras.models import Model
+
+import conversion
 
 
 def listdirInMac(path):
@@ -39,9 +41,9 @@ def traversalDir_FirstDir(path):
             dict[h[1]].append(value)
     return dict
 
-mix_path = traversalDir_FirstDir('Mixtures/Test/')
+mix_path = traversalDir_FirstDir('DSD100subset/Mixtures/Test/')
 
-sou_path = traversalDir_FirstDir('Sources/Test/')
+sou_path = traversalDir_FirstDir('DSD100subset/Sources/Test/')
 
 all_path = mix_path.copy()
 for key in all_path.keys():
@@ -101,12 +103,6 @@ def train(trainingSplit=0.9):
 
 def valid(trainingSplit=0.9):
     return (x[int(len(x) * trainingSplit):], y[int(len(y) * trainingSplit):])
-
-
-
-
-
-
 
 
 def apply_unet():
@@ -227,7 +223,7 @@ def trainModel(epochs=3, batch=1):
     xValid, yValid = valid()
 
     model.fit(xTrain, yTrain, batch_size=batch, epochs=epochs, validation_data=(xValid, yValid))
-    weightPath = '../weights' + ".h5"
+    weightPath = './weights' + ".h5"
     model.save_weights(weightPath, overwrite=True)
 
 trainModel()
