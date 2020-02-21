@@ -10,7 +10,6 @@ import numpy as np
 
 sys.path.append("..")
 import conversion
-from data import Data
 from unet import apply_unet
 
 
