@@ -15,6 +15,7 @@ sys.path.append("..")
 import conversion
 from data import Data
 from unet import apply_unet
+from measurement import matchAB
 
 
 
@@ -140,6 +141,7 @@ class AcapellaBot:
         conversion.saveAudioFile(newAudio, outputFileNameBase + ".wav", sampleRate)
         conversion.saveSpectrogram(newSpectrogram, outputFileNameBase + ".png")
         conversion.saveSpectrogram(spectrogram, os.path.join(pathParts[0], fileNameParts[0]) + ".png")
+        matchAB(fileA=outputFileNameBase+".png",fileB=os.path.join(pathParts[0], fileNameParts[0]) + ".png")
 
 
 
@@ -151,7 +153,7 @@ if __name__ == "__main__":
     parser.add_argument("--data", default=None, type=str, help="Path containing training data")
     parser.add_argument("--split", default=0.9, type=float, help="Proportion of the data to train on")
     parser.add_argument("--epochs", default=3, type=int, help="Number of epochs to train.")
-    parser.add_argument("--weights", default="../weights.h5", type=str, help="h5 file to read/write weights to")
+    parser.add_argument("--weights", default="../weights_kkk.h5", type=str, help="h5 file to read/write weights to")
     parser.add_argument("--batch", default=1, type=int, help="Batch size for training")
     parser.add_argument("--phase", default=10, type=int, help="Phase iterations for reconstruction")
     parser.add_argument("--load", action='store_true', help="Load previous weights file before starting")

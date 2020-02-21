@@ -61,7 +61,7 @@ def apply_unet():
         kernel_initializer=kernel_initializer)
 
     input_tensor = Input(batch_shape=(1, 768, 256, 1), name='input')
-    print(input_tensor.shape)
+    print('using unet')
     # First layer.
     conv1 = conv2d_factory(conv_n_filters[0], (5, 5))(input_tensor)
     batch1 = BatchNormalization(axis=-1)(conv1)
@@ -85,9 +85,6 @@ def apply_unet():
     # Sixth layer
     conv6 = conv2d_factory(conv_n_filters[5], (5, 5))(rel5)
 
-    print(1, int_shape(conv1))
-    print(5, int_shape(conv5))
-    print(6, int_shape(conv6))
 
     conv_to_LSTM_dims = int_shape(conv6)
     x = Reshape(target_shape=conv_to_LSTM_dims, name='reshapeconvtolstm')(conv6)
@@ -98,12 +95,10 @@ def apply_unet():
     x = ConvLSTM2D(filters=conv_n_filters[5], kernel_size=(3, 3),
                    padding='same', return_sequences=True, stateful=True)(x)
 
-    print(int_shape(x))
 
     LSTM_to_conv_dims = int_shape(conv6)
     x = Reshape(target_shape=LSTM_to_conv_dims, name='reshapelstmtoconv')(x)
     x = Lambda(lambda y: squeeze(y, 0))(x)
-    print('将进酒', int_shape(x))
 
     conv2d_transpose_factory = partial(
         Conv2DTranspose,
@@ -115,8 +110,6 @@ def apply_unet():
     up1 = deconv_activation_layer(up1)
     batch7 = BatchNormalization(axis=-1)(up1)
     drop1 = Dropout(0.5)(batch7)
-    print(int_shape(conv5))
-    print(int_shape(drop1))
     merge1 = Concatenate(axis=-1)([conv5, drop1])
     #
     up2 = conv2d_transpose_factory(conv_n_filters[3], (5, 5))((merge1))
@@ -148,7 +141,7 @@ def apply_unet():
     up7 = Conv2D(1, (4, 4), dilation_rate=(2, 2), activation='sigmoid', padding='same',
                  kernel_initializer=kernel_initializer)((batch12))
     output = multiply([up7, input_tensor])
-    print(input_tensor.shape, output.shape)
+    print('input and output shape:',input_tensor.shape, output.shape)
 
     m = Model(inputs=input_tensor, outputs=output)
     return m

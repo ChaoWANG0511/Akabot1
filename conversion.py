@@ -7,22 +7,30 @@ from os.path import basename
 from math import ceil
 import argparse
 import console
+from pydub import AudioSegment
 
-def loadAudioFile(filePath):
+
+def loadAudioFile(filePath,):
+    '''sound = AudioSegment.from_wav(filePath)
+    if "acapella" in filePath:
+        sound=sound+6
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!this is an acapella")
+        sound.export(filePath, format="wav")'''
+
     audio, sampleRate = librosa.load(filePath)  # Load an audio file as a floating point time series， 默认采样率sr=22050
     return audio, sampleRate
 
 def saveAudioFile(audioFile, filePath, sampleRate):
+
     librosa.output.write_wav(filePath, audioFile, sampleRate, norm=True)
+    '''sound = AudioSegment.from_wav(filePath)
+    if "acapella" in filePath:
+        sound=sound+6
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!this is an acapella")
+    sound.export(filePath, format="wav")'''
+
     console.info("Wrote audio file to", filePath)
 
-def expandToGrid(spectrogram, gridSize):
-    # crop along both axes
-    newY = ceil(spectrogram.shape[1] / gridSize) * gridSize  # ceil取上
-    newX = ceil(spectrogram.shape[0] / gridSize) * gridSize
-    newSpectrogram = np.zeros((newX, newY))    # 右，下：多一些0，至能被girdsize整除
-    newSpectrogram[:spectrogram.shape[0], :spectrogram.shape[1]] = spectrogram
-    return newSpectrogram
 
 # Return a 2d numpy array of the spectrogram
 def audioFileToSpectrogram(audioFile, fftWindowSize):
@@ -30,11 +38,6 @@ def audioFileToSpectrogram(audioFile, fftWindowSize):
     phase = np.imag(spectrogram)       # 为什么不是np.angle？
     amplitude = np.log1p(np.abs(spectrogram))   # np.abs(D[f, t]) is the magnitude of frequency bin f at frame帧 t， loge(1+ )
     return amplitude, phase
-
-
-
-
-
 
 
 import tensorflow as tf
@@ -82,32 +85,6 @@ def compute_spectrogram_tf(
 
 
 
-
-
-# This is the nutty one
-def spectrogramToAudioFile(spectrogram, fftWindowSize, phaseIterations=10, phase=None):
-    if phase is not None:
-        # reconstructing the new complex matrix
-        squaredAmplitudeAndSquaredPhase = np.power(spectrogram, 2)
-        squaredPhase = np.power(phase, 2)
-        unexpd = np.sqrt(np.max(squaredAmplitudeAndSquaredPhase - squaredPhase, 0))
-        amplitude = np.expm1(unexpd)
-        stftMatrix = amplitude + phase * 1j
-        audio = librosa.istft(stftMatrix)
-    else:
-        # phase reconstruction with successive approximation
-        # credit to https://dsp.stackexchange.com/questions/3406/reconstruction-of-audio-signal-from-its-absolute-spectrogram/3410#3410
-        # for the algorithm used
-        amplitude = np.exp(spectrogram) - 1   # 对应log1p
-        for i in range(phaseIterations):
-            if i == 0:
-                reconstruction = np.random.random_sample(amplitude.shape) + 1j * (2 * np.pi * np.random.random_sample(amplitude.shape) - np.pi)
-            else:
-                reconstruction = librosa.stft(audio, fftWindowSize)
-            spectrum = amplitude * np.exp(1j * np.angle(reconstruction))
-            audio = librosa.istft(spectrum)
-    return audio
-
 def loadSpectrogram(filePath):
     fileName = basename(filePath)
     if filePath.index("sampleRate") < 0:
@@ -152,12 +129,30 @@ def handleAudio(filePath, args):
 
     handleImage(SPECTROGRAM_FILENAME, args, phase)
 
+def spectrogramToAudioFile(spectrogram, phase, fftWindowSize, phaseIterations=10):
+    if phase is not None:
+        squaredAmplitudeAndSquaredPhase = np.power(spectrogram, 2)
+        squaredPhase = np.power(phase, 2)
+        unexpd = np.sqrt(np.max(squaredAmplitudeAndSquaredPhase - squaredPhase, 0))
+        amplitude = np.expm1(unexpd)
+        stftMatrix = amplitude + phase * 1j
+        audio = librosa.istft(stftMatrix)
+    else:
+        amplitude = np.exp(spectrogram) - 1   # 对应log1p
+        for i in range(phaseIterations):
+            if i == 0:
+                reconstruction = np.random.random_sample(amplitude.shape) + 1j * (2 * np.pi * np.random.random_sample(amplitude.shape) - np.pi)
+            else:
+                reconstruction = librosa.stft(audio, fftWindowSize)
+            spectrum = amplitude * np.exp(1j * np.angle(reconstruction))
+            audio = librosa.istft(spectrum)
+    return audio
 
-def handleImage(fileName, args, phase=None):
+def handleImage(fileName, args, phase):
     console.h1("Reconstructing Audio from Spectrogram")
 
     spectrogram, sampleRate = loadSpectrogram(fileName)
-    audio = spectrogramToAudioFile(spectrogram, fftWindowSize=args.fft, phaseIterations=args.iter)
+    audio = spectrogramToAudioFile(spectrogram, phase, fftWindowSize=args.fft, phaseIterations=args.iter)
 
     sanityCheck, phase = audioFileToSpectrogram(audio, fftWindowSize=args.fft)
     saveSpectrogram(sanityCheck, fileName + fileSuffix("Output Spectrogram", fft=args.fft, iter=args.iter, sampleRate=sampleRate) + ".png")
