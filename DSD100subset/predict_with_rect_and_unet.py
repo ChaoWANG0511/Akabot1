@@ -141,7 +141,7 @@ class AcapellaBot:
 
         path=path.replace("Mixtures","Sources")
         path=path.replace("mixture","vocals")
-        print("vocal target path: "+path)
+        #print("vocal target path: "+path)
         audio, sampleRate = conversion.loadAudioFile(path)  # 音频的信号值float ndarray
         spectrogram, phase = conversion.audioFileToSpectrogram(audio, fftWindowSize=fftWindowSize)  # stft得到的矩阵的幅值和相位
         expandedTarget = expandToGrid(spectrogram, time_scale, ratio_overlap)
