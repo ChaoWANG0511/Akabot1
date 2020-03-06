@@ -52,8 +52,8 @@ def expandToGrid(spectrogram, time_scale, ratio_overlap):
     newY = int(ceil((spectrogram.shape[1] - time_scale)/(1-ratio_overlap)/time_scale) * (1-ratio_overlap)*time_scale)+time_scale  # ceil取上
     newX = int(spectrogram.shape[0]/64)*64
     newSpectrogram = np.zeros((newX, newY))   # 右，下：多一些0，至能被girdsize整除
-    print(spectrogram.shape,"ttttttttt")
-    print(newSpectrogram.shape,"eeeeeee")
+    print(spectrogram.shape,"original shape")
+    print(newSpectrogram.shape,"expanded shape")
     newSpectrogram[:spectrogram.shape[0], :spectrogram.shape[1]] = spectrogram[:int(spectrogram.shape[0]/64)*64,:]
     return newSpectrogram
 
@@ -112,10 +112,7 @@ class AcapellaBot:
         spectrogram, phase = conversion.audioFileToSpectrogram(audio, fftWindowSize=fftWindowSize)     # stft得到的矩阵的幅值和相位
 
         expandedSpectrogram = expandToGrid(spectrogram,time_scale,ratio_overlap)
-        print(expandedSpectrogram.shape,"kkkkkkkk")
         newphase=expandToGrid(phase,time_scale,ratio_overlap)
-        print(phase.shape,"iiiiiiiiiiiiii")
-        print(newphase.shape,"hhhhhhhhhhh")
         Slices = chop(expandedSpectrogram, time_scale, ratio_overlap)
 #        print(Slices.shape)
         predicted_slices=[]
@@ -128,7 +125,7 @@ class AcapellaBot:
             predicted_slices.append(predicted_slice)
 
         newSpectrogram=ichop(predicted_slices,time_scale,ratio_overlap,newphase)
-        print(newSpectrogram.shape,"yyyyyyyy")
+        print(newSpectrogram.shape,"ichopped shape")
 
 
         # 幅值反stft转为阿卡贝拉audio数
@@ -140,9 +137,18 @@ class AcapellaBot:
         # 数转音，存
         conversion.saveAudioFile(newAudio, outputFileNameBase + ".wav", sampleRate)
         conversion.saveSpectrogram(newSpectrogram, outputFileNameBase + ".png")
-        conversion.saveSpectrogram(spectrogram, os.path.join(pathParts[0], fileNameParts[0]) + ".png")
-        matchAB(fileA=outputFileNameBase+".png",fileB=os.path.join(pathParts[0], fileNameParts[0]) + ".png")
+        conversion.saveSpectrogram(expandedSpectrogram, os.path.join(pathParts[0], fileNameParts[0]) + ".png")
 
+        path=path.replace("Mixtures","Sources")
+        path=path.replace("mixture","vocals")
+        print("vocal target path: "+path)
+        audio, sampleRate = conversion.loadAudioFile(path)  # 音频的信号值float ndarray
+        spectrogram, phase = conversion.audioFileToSpectrogram(audio, fftWindowSize=fftWindowSize)  # stft得到的矩阵的幅值和相位
+        expandedTarget = expandToGrid(spectrogram, time_scale, ratio_overlap)
+        conversion.saveSpectrogram(expandedTarget, os.path.join(pathParts[0], fileNameParts[0]+"_target.png"))
+
+        sdr=matchAB(fileA=outputFileNameBase+".png",fileB=os.path.join(pathParts[0], fileNameParts[0]+"_target.png"))
+        print("SDR=",sdr," (higher is better)")
 
 
 if __name__ == "__main__":
