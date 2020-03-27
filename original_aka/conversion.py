@@ -1,12 +1,12 @@
 import librosa
 import numpy as np
-import scipy
 import warnings
 import skimage.io as io
 from os.path import basename
 from math import ceil
 import argparse
-import console
+from original_aka import console
+
 
 def loadAudioFile(filePath):
     audio, sampleRate = librosa.load(filePath)  # Load an audio file as a floating point time series， 默认采样率sr=22050

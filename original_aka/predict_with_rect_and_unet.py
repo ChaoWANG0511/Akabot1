@@ -9,7 +9,7 @@ import librosa
 import numpy as np
 
 sys.path.append("..")
-import conversion
+from original_aka import conversion
 from unet import apply_unet
 
 
