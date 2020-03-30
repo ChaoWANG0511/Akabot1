@@ -2,7 +2,8 @@ import argparse
 import os
 from tensorflow.keras.metrics import Accuracy
 from data_processing import traversalDir_FirstDir, loadAudioFile, audioFileToSpectrogram, expandToGrid, chop, ichop, \
-    spectrogramToAudioFile, saveAudioFile, saveSpectrogram, song2spectrogram, song2spectrogram_unet
+    spectrogramToAudioFile, saveAudioFile, saveSpectrogram, song2spectrogram, song2spectrogram_unet, expandToGrid_unet,\
+    ichop_unet, chop_unet
 from models import blstm, apply_unet
 from tensorflow.keras.models import load_model
 from original_aka import console
@@ -17,12 +18,12 @@ class Acapella:
         self.model_unet.compile(loss='mean_squared_error', optimizer='adam', metrics=[Accuracy()])
 
     def saveWeights(self, path):
-        self.model.save(path, overwrite=True)
-        self.model_unet.save(path+'_unet',overwrite=True)
+        self.model.save(path+'.h5', overwrite=True)
+        self.model_unet.save(path+'_unet.h5',overwrite=True)
 
     def loadWeights(self, path):
-        self.model = load_model(path)
-        self.model_unet = load_model(path+'_unet')
+        self.model = load_model(path+'.h5')
+        self.model_unet = load_model(path+'_unet.h5')
 
     def train(self, m_path, s_path, instrument):
         mix_path = traversalDir_FirstDir(m_path)
@@ -50,27 +51,38 @@ class Acapella:
         elif instrument == 'other':
             self.model.fit(list_dataset[0], list_dataset[4], epochs=10, batch_size=20, validation_split=0.1)
 
-        # BLSTM model
-        # self.model.fit(list_dataset[0], list_dataset[-1], epochs=10, batch_size=20, validation_split=0.1)
-        # self.model.summary()
-
         save = input("Should we save intermediate weights [y/n]? ")
         if not save.lower().startswith("n"):
             # weightPath = ''.join(random.choice(string.digits) for _ in range(16)) + ".h5"
-            weightPath = instrument + 'weights.h5'
+            weightPath = instrument + 'weights'
             console.log("Saving intermediate weights to", weightPath)
             self.saveWeights(weightPath)
 
         return self.model
 
     def predict(self, file_path):
+        #blstm
         audio, sampleRate = loadAudioFile(file_path)
         spectrogram, phase = audioFileToSpectrogram(audio, fftWindowSize=1024)  # stft得到的矩阵的幅值和相位
+
         expandedSpectrogram, K = expandToGrid(spectrogram, 30, 0.5)
         Slices = chop(expandedSpectrogram, 30, 0.5)  # (1073, 30, 513)
         predictedSlices = self.model.predict(Slices)  # 放入model做预测
         newSpectrogram = ichop(expandedSpectrogram, predictedSlices)
-        return newSpectrogram
+
+        #unet
+        expandedSpectrogram_unet = expandToGrid_unet(spectrogram,64,0.5)
+        slices_unet = chop_unet(expandedSpectrogram_unet, 64, 0.5)
+        x_test = np.empty((0,512, 64), float)
+        x_test = np.append(x_test, slices_unet,axis=0)
+        x_test = np.array(x_test)[:, :, :, np.newaxis]
+        x_predicted = self.model_unet.predict(x_test)
+        x_predicted = np.squeeze(x_predicted, axis = 3)
+        newSpectrogram_unet = ichop_unet(x_predicted,64,0.5, expandedSpectrogram_unet)
+        b = np.zeros(newSpectrogram_unet.shape[1])
+        expandedSpectrogram_unet = np.insert(newSpectrogram_unet, newSpectrogram_unet.shape[0], values=b, axis=0)
+
+        return 0.7*newSpectrogram+0.3*expandedSpectrogram_unet[:,0:945]
 
 
 if __name__ == "__main__":
@@ -81,7 +93,7 @@ if __name__ == "__main__":
     parser.add_argument("--data", default=None, type=str, help="Path containing training data")
     parser.add_argument("--split", default=0.9, type=float, help="Proportion of the data to train on")
     parser.add_argument("--epochs", default=10, type=int, help="Number of epochs to train.")
-    parser.add_argument("--weights", default="weights.h5", type=str, help="h5 file to read/write weights to")
+    parser.add_argument("--weights", default="vocalsweights", type=str, help="h5 file to read/write weights to")
     parser.add_argument("--batch", default=8, type=int, help="Batch size for training")
     parser.add_argument("--phase", default=10, type=int, help="Phase iterations for reconstruction")
     parser.add_argument("--load", action='store_true', help="Load previous weights file before starting")

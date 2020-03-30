@@ -12,6 +12,32 @@ def listdirInMac(path):
             os_list.remove(item)
     return os_list
 
+def expandToGrid_unet(spectrogram, time_scale, ratio_overlap):
+    newY = int(ceil((spectrogram.shape[1] - time_scale)/(1-ratio_overlap)/time_scale) * (1-ratio_overlap)*time_scale)+time_scale  # ceil取上
+    #newX = int(spectrogram.shape[0]/64)*64
+    newX = 512
+    newSpectrogram = np.zeros((newX, newY))   # 右，下：多一些0，至能被girdsize整除
+    print(spectrogram.shape,"original shape")
+    print(newSpectrogram.shape,"expanded shape")
+    newSpectrogram[:512, :spectrogram.shape[1]] = spectrogram[:512,:]
+    return newSpectrogram
+
+def ichop_unet(predicted_slices, time_scale, ratio_overlap,expandedSpectrogram):
+    cutpoint=int(time_scale*ratio_overlap)
+    cutpointB=time_scale-cutpoint
+    newspectrogram=np.zeros((predicted_slices.shape[0],cutpointB))
+    for i in range(len(predicted_slices)):
+        front=predicted_slices[i][:,:cutpoint]
+        middle=predicted_slices[i][:,cutpoint:cutpointB]
+        back=predicted_slices[i-1][:,cutpointB:]
+        if i==0:
+            newspectrogram=np.hstack((front,middle))
+        elif i==len(predicted_slices)-1:
+            newspectrogram=np.hstack((newspectrogram,0.5*(front+back),middle,predicted_slices[i][:,cutpointB:]))
+        else:
+            newspectrogram=np.hstack((newspectrogram, 0.5*(front+back),middle))
+    newspectrogram_fit=newspectrogram[:int(expandedSpectrogram.shape[0]),:(expandedSpectrogram.shape[1])]
+    return newspectrogram_fit
 
 def traversalDir_FirstDir(path):
     dict = {}
@@ -50,18 +76,6 @@ def expandToGrid(spectrogram, time_scale, ratio_overlap):
     newSpectrogram = np.zeros((newX, newY))  # 右：多一些0，至能被girdsize整除
     newSpectrogram[:, :spectrogram.shape[1]] = spectrogram
     return newSpectrogram, K
-
-
-def expandToGrid_unet(spectrogram, time_scale, ratio_overlap):
-    newY = int(ceil((spectrogram.shape[1] - time_scale) / (1 - ratio_overlap) / time_scale) * (
-                1 - ratio_overlap) * time_scale) + time_scale  # ceil取上
-    # newX = int(spectrogram.shape[0]/64)*64
-    newX = 512
-    newSpectrogram = np.zeros((newX, newY))  # 右，下：多一些0，至能被girdsize整除
-    print(spectrogram.shape, "original shape")
-    print(newSpectrogram.shape, "expanded shape")
-    newSpectrogram[:512, :spectrogram.shape[1]] = spectrogram[:512, :]
-    return newSpectrogram
 
 
 def chop_unet(matrix, time_scale, ratio_overlap):
