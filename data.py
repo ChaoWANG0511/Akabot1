@@ -115,7 +115,7 @@ class Data:
                         targetPathMap = acapellas if fileIsAcapella(fileName) else instrumentals     # 根据文件名标tag
                         tag = "[Acapella]" if fileIsAcapella(fileName) else "[Instrumental]"
 
-                        audio, sampleRate = conversion.loadAudioFile(os.path.join(self.inPath, fileName))
+                        audio, sampleRate,sr,nc = conversion.loadAudioFile(os.path.join(self.inPath, fileName))
                         spectrogram, phase = conversion.audioFileToSpectrogram(audio, self.fftWindowSize)
 
                         targetPathMap[key].append(spectrogram)                      # ex. acapellas[调]=[这首歌的频谱幅值,...]
@@ -183,7 +183,7 @@ class Data:
                 path_list = [all_path[key][0], all_path[key][-1]]
 
                 for path in path_list:
-                    audio, sampleRate = conversion.loadAudioFile(path)
+                    audio, sampleRate,sr,nc = conversion.loadAudioFile(path)
                     spectrogram, phase = conversion.audioFileToSpectrogram(audio, self.fftWindowSize)
 
                     # expandedSpectrogram = conversion.expandToGrid(spectrogram, self.peakDownscaleFactor)
@@ -213,4 +213,4 @@ if __name__ == "__main__":
     conversion.saveSpectrogram(d.x[0], "x_sample_0.png")
     conversion.saveSpectrogram(d.y[0], "y_sample_0.png")
     audio = conversion.spectrogramToAudioFile(d.x[0], 1536)
-    conversion.saveAudioFile(audio, "x_sample.wav", 22050)
+    conversion.saveAudioFile(audio, "x_sample.wav", 44100,2,2)

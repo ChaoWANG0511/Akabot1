@@ -8,33 +8,46 @@ from math import ceil
 import argparse
 import console
 from pydub import AudioSegment
+import wave
+import struct
 
 
-def loadAudioFile(filePath,):
-    '''sound = AudioSegment.from_wav(filePath)
-    if "acapella" in filePath:
-        sound=sound+6
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!this is an acapella")
-        sound.export(filePath, format="wav")'''
+def loadAudioFile(filePath):
+    wf = wave.open(filePath, 'rb')
 
-    audio, sampleRate = librosa.load(filePath)  # Load an audio file as a floating point time series， 默认采样率sr=22050
-    return audio, sampleRate
+    nframes = wf.getnframes()
+    str_data = wf.readframes(nframes)
+    sampleRate=wf.getframerate()
+    samplewidth=wf.getsampwidth()
+    nchannels=wf.getnchannels()
 
-def saveAudioFile(audioFile, filePath, sampleRate):
+    wf.close()
 
-    librosa.output.write_wav(filePath, audioFile, sampleRate, norm=True)
-    '''sound = AudioSegment.from_wav(filePath)
-    if "acapella" in filePath:
-        sound=sound+6
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!this is an acapella")
-    sound.export(filePath, format="wav")'''
+    wave_data = np.fromstring(str_data)
+    print("bfrore:",np.min(wave_data),np.max(wave_data))
+    wave_data=np.nan_to_num(wave_data)
+    print("after:", np.min(wave_data),np.max(wave_data))
+
+    return wave_data, sampleRate,samplewidth,nchannels
+
+def saveAudioFile(audioFile, filePath, sampleRate,samplewidth,nchannels):
+
 
     console.info("Wrote audio file to", filePath)
+
+    wf_mono = wave.open(filePath, 'wb')
+    wf_mono.setnchannels(nchannels)
+    wf_mono.setframerate(sampleRate)
+    wf_mono.setsampwidth(samplewidth)
+
+    wf_mono.writeframes(audioFile)
+    wf_mono.close()
 
 
 # Return a 2d numpy array of the spectrogram
 def audioFileToSpectrogram(audioFile, fftWindowSize):
-    spectrogram = librosa.stft(audioFile, fftWindowSize)   # 返回复数值矩阵D , STFT矩阵D中的行数是（1 + 第二个参数一般2的幂n_fft / 2）
+    spectrogram = librosa.stft(audioFile, fftWindowSize)
+    print("werwerwerwer",spectrogram)# 返回复数值矩阵D , STFT矩阵D中的行数是（1 + 第二个参数一般2的幂n_fft / 2）
     phase = np.imag(spectrogram)       # 为什么不是np.angle？
     amplitude = np.log1p(np.abs(spectrogram))   # np.abs(D[f, t]) is the magnitude of frequency bin f at frame帧 t， loge(1+ )
     return amplitude, phase

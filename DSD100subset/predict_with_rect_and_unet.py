@@ -108,8 +108,10 @@ class AcapellaBot:
     # 预测model， 数据处理stft
     def isolateVocals(self, path, fftWindowSize, phaseIterations=10,time_scale=256,ratio_overlap=0.2):
         # audio stft 得幅值
-        audio, sampleRate = conversion.loadAudioFile(path)   # 音频的信号值float ndarray
+        audio, sampleRate,sw,nc = conversion.loadAudioFile(path)   # 音频的信号值float ndarray
+        print(audio,"yyyyyyyyyyyyy")
         spectrogram, phase = conversion.audioFileToSpectrogram(audio, fftWindowSize=fftWindowSize)     # stft得到的矩阵的幅值和相位
+        print("ooooooooooooooooooooooooooooooo",spectrogram)
 
         expandedSpectrogram = expandToGrid(spectrogram,time_scale,ratio_overlap)
         newphase=expandToGrid(phase,time_scale,ratio_overlap)
@@ -125,6 +127,7 @@ class AcapellaBot:
             predicted_slices.append(predicted_slice)
 
         newSpectrogram=ichop(predicted_slices,time_scale,ratio_overlap,newphase)
+        print(newSpectrogram,"ddddddddddddc")
         print(newSpectrogram.shape,"ichopped shape")
 
 
@@ -135,20 +138,19 @@ class AcapellaBot:
         outputFileNameBase = os.path.join(pathParts[0], fileNameParts[0] + "_acapella")
 
         # 数转音，存
-        conversion.saveAudioFile(newAudio, outputFileNameBase + ".wav", sampleRate)
+        print(newAudio,"qqqqqqqqqqqqqqq")
+        conversion.saveAudioFile(newAudio, outputFileNameBase + ".wav", sampleRate,sw,nc)
         conversion.saveSpectrogram(newSpectrogram, outputFileNameBase + ".png")
         conversion.saveSpectrogram(expandedSpectrogram, os.path.join(pathParts[0], fileNameParts[0]) + ".png")
 
-        path=path.replace("Mixtures","Sources")
+        '''path=path.replace("Mixtures","Sources")
         path=path.replace("mixture","vocals")
         #print("vocal target path: "+path)
         audio, sampleRate = conversion.loadAudioFile(path)  # 音频的信号值float ndarray
         spectrogram, phase = conversion.audioFileToSpectrogram(audio, fftWindowSize=fftWindowSize)  # stft得到的矩阵的幅值和相位
         expandedTarget = expandToGrid(spectrogram, time_scale, ratio_overlap)
-        conversion.saveSpectrogram(expandedTarget, os.path.join(pathParts[0], fileNameParts[0]+"_target.png"))
+        conversion.saveSpectrogram(expandedTarget, os.path.join(pathParts[0], fileNameParts[0]+"_target.png"))'''
 
-        sdr=matchAB(fileA=outputFileNameBase+".png",fileB=os.path.join(pathParts[0], fileNameParts[0]+"_target.png"))
-        print("SDR=",sdr," (higher is better)")
 
 
 if __name__ == "__main__":
