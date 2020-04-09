@@ -168,7 +168,7 @@ class AcapellaBot:
                                           phaseIterations=phaseIterations)
 
         conversion.saveSpectrogram(expandedTargetgram, os.path.join(pathParts[0], fileNameParts[0]+"_target.png"))# save vocal reference spectrogram to mixture source path
-        conversion.saveAudioFile(expandedTargetAudio, path, sampleRate)# save vocal ref audio to from where it came
+        #conversion.saveAudioFile(expandedTargetAudio, path, sampleRate)# save vocal ref audio to from where it came
 
         pathParts = os.path.split(path)
         eval_ref_path = os.path.join(pathParts[0],"eval")
