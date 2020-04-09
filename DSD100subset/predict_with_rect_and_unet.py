@@ -15,8 +15,7 @@ sys.path.append("..")
 import conversion
 from data import Data
 from unet import apply_unet
-from measurement import matchAB
-
+import museval
 
 
 def spectrogramToAudioFile(spectrogram, phase, fftWindowSize, phaseIterations=10):
@@ -108,10 +107,10 @@ class AcapellaBot:
     # 预测model， 数据处理stft
     def isolateVocals(self, path, fftWindowSize, phaseIterations=10,time_scale=256,ratio_overlap=0.2):
         # audio stft 得幅值
-        audio, sampleRate,sw,nc = conversion.loadAudioFile(path)   # 音频的信号值float ndarray
-        print(audio,"yyyyyyyyyyyyy")
+        audio, sampleRate = conversion.loadAudioFile(path)   # 音频的信号值float ndarray
+        #print(audio,"yyyyyyyyyyyyy")
         spectrogram, phase = conversion.audioFileToSpectrogram(audio, fftWindowSize=fftWindowSize)     # stft得到的矩阵的幅值和相位
-        print("ooooooooooooooooooooooooooooooo",spectrogram)
+        #print("ooooooooooooooooooooooooooooooo",spectrogram)
 
         expandedSpectrogram = expandToGrid(spectrogram,time_scale,ratio_overlap)
         newphase=expandToGrid(phase,time_scale,ratio_overlap)
@@ -127,29 +126,65 @@ class AcapellaBot:
             predicted_slices.append(predicted_slice)
 
         newSpectrogram=ichop(predicted_slices,time_scale,ratio_overlap,newphase)
-        print(newSpectrogram,"ddddddddddddc")
-        print(newSpectrogram.shape,"ichopped shape")
+        #print(newSpectrogram,"ddddddddddddc")
+        #print(newSpectrogram.shape,"ichopped shape")
 
 
         # 幅值反stft转为阿卡贝拉audio数
         newAudio = spectrogramToAudioFile(newSpectrogram,newphase, fftWindowSize=fftWindowSize, phaseIterations=phaseIterations)   # phase?
         pathParts = os.path.split(path)
         fileNameParts = os.path.splitext(pathParts[1])
-        outputFileNameBase = os.path.join(pathParts[0], fileNameParts[0] + "_acapella")
+        outputFileNameBase = os.path.join(pathParts[0], "vocals")
+        eval_est_path=  os.path.join(pathParts[0],"eval")
+        eval_rslt_path=os.path.splitext(pathParts[0])
+        rslt_path=''.join(eval_rslt_path)
+
+        if not os.path.exists(eval_est_path):
+            os.mkdir(eval_est_path)
+
 
         # 数转音，存
-        print(newAudio,"qqqqqqqqqqqqqqq")
-        conversion.saveAudioFile(newAudio, outputFileNameBase + ".wav", sampleRate,sw,nc)
-        conversion.saveSpectrogram(newSpectrogram, outputFileNameBase + ".png")
-        conversion.saveSpectrogram(expandedSpectrogram, os.path.join(pathParts[0], fileNameParts[0]) + ".png")
+        #print(newAudio,"qqqqqqqqqqqqqqq")
+        conversion.saveAudioFile(newAudio, outputFileNameBase + ".wav", sampleRate)# should be .../mixture_acapella.wav
+        conversion.saveAudioFile(newAudio, os.path.join(pathParts[0],"eval","vocals")+".wav", sampleRate)# should be .../mixture_acapella.wav
 
-        '''path=path.replace("Mixtures","Sources")
-        path=path.replace("mixture","vocals")
-        #print("vocal target path: "+path)
-        audio, sampleRate = conversion.loadAudioFile(path)  # 音频的信号值float ndarray
-        spectrogram, phase = conversion.audioFileToSpectrogram(audio, fftWindowSize=fftWindowSize)  # stft得到的矩阵的幅值和相位
-        expandedTarget = expandToGrid(spectrogram, time_scale, ratio_overlap)
-        conversion.saveSpectrogram(expandedTarget, os.path.join(pathParts[0], fileNameParts[0]+"_target.png"))'''
+
+        conversion.saveSpectrogram(newSpectrogram, outputFileNameBase + ".png")# should ba .../mixture_acapella.png
+        conversion.saveSpectrogram(expandedSpectrogram, os.path.join(pathParts[0], fileNameParts[0]) + ".png")# should be .../mixture.png
+
+
+        #evaluation
+        path=path.replace("Mixtures","Sources")
+        path=path.replace("mixture","vocals")# path for acapella reference for this mixture
+
+        audio, sampleRate = conversion.loadAudioFile(path)
+
+        spectrogram, phase = conversion.audioFileToSpectrogram(audio, fftWindowSize=fftWindowSize)
+
+        expandedTargetgram = expandToGrid(spectrogram, time_scale, ratio_overlap)
+        newphase=expandToGrid(phase,time_scale,ratio_overlap)
+
+        expandedTargetAudio = spectrogramToAudioFile(expandedTargetgram, newphase, fftWindowSize=fftWindowSize,
+                                          phaseIterations=phaseIterations)
+
+        conversion.saveSpectrogram(expandedTargetgram, os.path.join(pathParts[0], fileNameParts[0]+"_target.png"))# save vocal reference spectrogram to mixture source path
+        conversion.saveAudioFile(expandedTargetAudio, path, sampleRate)# save vocal ref audio to from where it came
+
+        pathParts = os.path.split(path)
+        eval_ref_path = os.path.join(pathParts[0],"eval")
+        if not os.path.exists(eval_ref_path):
+            os.mkdir(eval_ref_path)
+
+        conversion.saveAudioFile(expandedTargetAudio, os.path.join(pathParts[0],"eval/vocals.wav"), sampleRate)# save vocal ref audio to a new sub folder under from where it came
+
+        path_ref=''.join(eval_ref_path)
+        print("reference:",path_ref)
+        path_est=''.join(eval_est_path)
+        print("estimate:",path_est)
+        a = museval.eval_dir(path_ref, path_est,output_dir=rslt_path)
+        print(a)
+
+
 
 
 

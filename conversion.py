@@ -10,44 +10,33 @@ import console
 from pydub import AudioSegment
 import wave
 import struct
+import soundfile as sf
 
 
-def loadAudioFile(filePath):
+def loadAudioFile(filePath,sr=None):
+    print('loading audio from:',filePath)
     wf = wave.open(filePath, 'rb')
-
-    nframes = wf.getnframes()
-    str_data = wf.readframes(nframes)
-    sampleRate=wf.getframerate()
-    samplewidth=wf.getsampwidth()
-    nchannels=wf.getnchannels()
-
+    nframes = wf.getparams()
+    print("saving audio to:", filePath)
+    print(nframes)
     wf.close()
+    audio, sampleRate = librosa.load(filePath,sr)  # Load an audio file as a floating point time series， 默认采样率sr=44100
+    return audio, sampleRate
 
-    wave_data = np.fromstring(str_data)
-    print("bfrore:",np.min(wave_data),np.max(wave_data))
-    wave_data=np.nan_to_num(wave_data)
-    print("after:", np.min(wave_data),np.max(wave_data))
-
-    return wave_data, sampleRate,samplewidth,nchannels
-
-def saveAudioFile(audioFile, filePath, sampleRate,samplewidth,nchannels):
-
-
-    console.info("Wrote audio file to", filePath)
-
-    wf_mono = wave.open(filePath, 'wb')
-    wf_mono.setnchannels(nchannels)
-    wf_mono.setframerate(sampleRate)
-    wf_mono.setsampwidth(samplewidth)
-
-    wf_mono.writeframes(audioFile)
-    wf_mono.close()
+def saveAudioFile(audioFile, filePath, sampleRate):
+    audioFile = np.vstack((audioFile, audioFile)).T
+    sf.write(filePath, audioFile, sampleRate)
+    wf = wave.open(filePath, 'rb')
+    nframes = wf.getparams()
+    print("saving audio to:",filePath)
+    print(nframes)
+    wf.close()
 
 
 # Return a 2d numpy array of the spectrogram
 def audioFileToSpectrogram(audioFile, fftWindowSize):
     spectrogram = librosa.stft(audioFile, fftWindowSize)
-    print("werwerwerwer",spectrogram)# 返回复数值矩阵D , STFT矩阵D中的行数是（1 + 第二个参数一般2的幂n_fft / 2）
+    #print("werwerwerwer",spectrogram)# 返回复数值矩阵D , STFT矩阵D中的行数是（1 + 第二个参数一般2的幂n_fft / 2）
     phase = np.imag(spectrogram)       # 为什么不是np.angle？
     amplitude = np.log1p(np.abs(spectrogram))   # np.abs(D[f, t]) is the magnitude of frequency bin f at frame帧 t， loge(1+ )
     return amplitude, phase
@@ -102,7 +91,7 @@ def loadSpectrogram(filePath):
     fileName = basename(filePath)
     if filePath.index("sampleRate") < 0:
         console.warn("Sample rate should be specified in file name", filePath)
-        sampleRate = 22050
+        sampleRate = 44100
     else:
         sampleRate = int(fileName[fileName.index("sampleRate=") + 11:fileName.index(").png")])
     console.info("Using sample rate : " + str(sampleRate))
