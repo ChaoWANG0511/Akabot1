@@ -3,6 +3,7 @@ import os
 from math import ceil
 import librosa
 import skimage.io as io
+import psutil
 
 
 def listdirInMac(path):
@@ -107,8 +108,10 @@ def song2spectrogram(all_path_para, fftWindowSize=1024, time_scale=30, overlap_r
     y_drums = np.empty((0, 30, 513), float)
     y_other = np.empty((0, 30, 513), float)
     y_vocals = np.empty((0, 30, 513), float)
-    for key in all_path_para:
-        path_list = all_path_para[key][:]
+
+    while all_path_para:
+        path_list = all_path_para.popitem()[1]
+        print(path_list)
 
         for path in path_list:
             audio, sampleRate = loadAudioFile(path)
@@ -131,9 +134,15 @@ def song2spectrogram(all_path_para, fftWindowSize=1024, time_scale=30, overlap_r
             else:
                 y_vocals = np.append(y_vocals, slices, axis=0)
 
-    output = [x, x_phase, y_bass, y_drums, y_other, y_vocals]
+        print(psutil.virtual_memory()[1])
+        if psutil.virtual_memory()[1] < 618734592: #内存小于0.6Gb是跳出
+            a=psutil.virtual_memory()[1]
+            break
 
-    return output
+    output = [x, x_phase, y_bass, y_drums, y_other, y_vocals]
+    list_left = all_path_para
+
+    return output, list_left
 
 
 def song2spectrogram_unet(all_path_para, fftWindowSize=1024, time_scale=64, overlap_ratio=0.5):
@@ -143,8 +152,10 @@ def song2spectrogram_unet(all_path_para, fftWindowSize=1024, time_scale=64, over
     y_drums = np.empty((0, 512, 64), float)
     y_other = np.empty((0, 512, 64), float)
     y_vocals = np.empty((0, 512, 64), float)
-    for key in all_path_para:
-        path_list = all_path_para[key][:]
+
+    while all_path_para:
+        path_list = all_path_para.popitem()[1]
+        print(path_list)
 
         for path in path_list:
             audio, sampleRate = loadAudioFile(path)
@@ -167,9 +178,14 @@ def song2spectrogram_unet(all_path_para, fftWindowSize=1024, time_scale=64, over
             else:
                 y_vocals = np.append(y_vocals, slices, axis=0)
 
-    output = [x, x_phase, y_bass, y_drums, y_other, y_vocals]
+        print(psutil.virtual_memory()[1])
+        if psutil.virtual_memory()[1] < 618734592:#内存小于0.6Gb是跳出
+            break
 
-    return output
+    output = [x, x_phase, y_bass, y_drums, y_other, y_vocals]
+    list_left = all_path_para
+
+    return output, list_left
 
 
 def ichop(expandedSpectrogram, predicted_slices, time_scale=30, ratio_overlap=0.5):

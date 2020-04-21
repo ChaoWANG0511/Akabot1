@@ -8,7 +8,7 @@ from models import blstm, apply_unet
 from tensorflow.keras.models import load_model
 from original_aka import console
 import numpy as np
-
+import copy
 
 class Acapella:
     def __init__(self, weight_path=None):
@@ -33,23 +33,31 @@ class Acapella:
             all_path[key].extend(sou_path[key])
         print("%d mixtures in the given path to train" % len(mix_path))
         print(all_path)
-        list_dataset = song2spectrogram(all_path)
-        print('phase： ', len(list_dataset[1]), list_dataset[1][0].shape)
-        print('dataset for model: ', list_dataset[0].shape, list_dataset[3].shape)
 
-        list_dataset_unet = song2spectrogram_unet(all_path_para=all_path)
+        left_path_blst = copy.deepcopy(all_path)
+        while left_path_blst:
+            list_dataset, left_path_blst = song2spectrogram(left_path_blst)#所需内存过大
+            if instrument == 'vocals':
+                self.model.fit(list_dataset[0], list_dataset[5], epochs=10, batch_size=20, validation_split=0.1)
 
-        if instrument == 'vocals':
-            x_unet = np.array(list_dataset_unet[0])[:, :, :, np.newaxis]
-            y_unet = np.array(list_dataset_unet[0])[:, :, :, np.newaxis]
-            self.model_unet.fit(x_unet, y_unet, batch_size=50, epochs=1, validation_split=0.1)
-            self.model.fit(list_dataset[0], list_dataset[5], epochs=10, batch_size=20, validation_split=0.1)
-        elif instrument == 'bass':
-            self.model.fit(list_dataset[0], list_dataset[2], epochs=10, batch_size=20, validation_split=0.1)
-        elif instrument == 'drums':
-            self.model.fit(list_dataset[0], list_dataset[3], epochs=10, batch_size=20, validation_split=0.1)
-        elif instrument == 'other':
-            self.model.fit(list_dataset[0], list_dataset[4], epochs=10, batch_size=20, validation_split=0.1)
+                self.model.save("vocalweights.h5", overwrite=True)
+
+        left_path_unet = all_path
+        while left_path_unet:
+            list_dataset_unet, left_path_unet = song2spectrogram_unet(left_path_unet)
+            if instrument == 'vocals':
+                x_unet = np.array(list_dataset_unet[0])[:, :, :, np.newaxis]
+                y_unet = np.array(list_dataset_unet[5])[:, :, :, np.newaxis]
+                self.model_unet.fit(x_unet, y_unet, batch_size=50, epochs=1, validation_split=0.1)
+
+                self.model_unet.save("vocalweights_unet.h5", overwrite=True)
+
+            elif instrument == 'bass':
+                self.model.fit(list_dataset[0], list_dataset[2], epochs=10, batch_size=20, validation_split=0.1)
+            elif instrument == 'drums':
+                self.model.fit(list_dataset[0], list_dataset[3], epochs=10, batch_size=20, validation_split=0.1)
+            elif instrument == 'other':
+                self.model.fit(list_dataset[0], list_dataset[4], epochs=10, batch_size=20, validation_split=0.1)
 
         save = input("Should we save intermediate weights [y/n]? ")
         if not save.lower().startswith("n"):
@@ -82,7 +90,7 @@ class Acapella:
         b = np.zeros(newSpectrogram_unet.shape[1])
         expandedSpectrogram_unet = np.insert(newSpectrogram_unet, newSpectrogram_unet.shape[0], values=b, axis=0)
 
-        return 0.7*newSpectrogram+0.3*expandedSpectrogram_unet[:,0:945]
+        return 1*newSpectrogram+0*expandedSpectrogram_unet[:,0:945]
 
 
 if __name__ == "__main__":
