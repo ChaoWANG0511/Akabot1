@@ -27,6 +27,7 @@ from keras.initializers import he_uniform
 
 from keras.layers import Input, Conv2D, MaxPooling2D, BatchNormalization, UpSampling2D, Concatenate
 from keras.models import Model
+<<<<<<< HEAD
 from tensorflow.keras.initializers import he_uniform
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import (
@@ -90,6 +91,8 @@ def standard_unit(input_tensor, stage, nb_filter, kernel_size=3):
     x = Dropout(dropout_rate, name='dp'+stage+'_2')(x)
 
     return x
+=======
+>>>>>>> 65cde9b2ec6e57228185a4db2c693a1d7efa937b
 
 
 def blstm():
