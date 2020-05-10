@@ -1,29 +1,40 @@
 import argparse
 import os
 from tensorflow.keras.metrics import Accuracy
-from data_processing import traversalDir_FirstDir, loadAudioFile, audioFileToSpectrogram, expandToGrid, chop, ichop, \
-    spectrogramToAudioFile, saveAudioFile, saveSpectrogram, song2spectrogram, song2spectrogram_unet, expandToGrid_unet,\
-    ichop_unet, chop_unet
-from models import blstm, apply_unet
+# from data_processing import traversalDir_FirstDir, loadAudioFile, audioFileToSpectrogram, expandToGrid, chop, ichop, \
+#     spectrogramToAudioFile, saveAudioFile, saveSpectrogram, song2spectrogram, song2spectrogram_unet, expandToGrid_unet,\
+#     ichop_unet, chop_unet
+from Data import chop, dataset, ichop, estimateSpectro
+from data_processing import saveAudioFile
+from models import blstm, apply_unet, apply_blstm, Nest_Net
 from tensorflow.keras.models import load_model
 from original_aka import console
 import numpy as np
 import copy
+import musdb
+from IPython.display import Audio, display
+from scipy.signal import stft, istft
+
 
 class Acapella:
     def __init__(self, weight_path=None):
-        self.model = blstm()
+        self.model = apply_blstm()
         self.model.compile(loss='mean_squared_error', optimizer='adam', metrics=[Accuracy()])
         self.model_unet = apply_unet()
         self.model_unet.compile(loss='mean_squared_error', optimizer='adam', metrics=[Accuracy()])
+        self.model_unetpp = Nest_Net()
+        self.model_unetpp.compile(loss='mean_squared_error', optimizer='adam', metrics=[Accuracy()])
+
 
     def saveWeights(self, path):
         self.model.save(path+'.h5', overwrite=True)
         self.model_unet.save(path+'_unet.h5',overwrite=True)
+        self.model_unetpp.save(path+'_unetpp.h5',overwrite=True)
 
     def loadWeights(self, path):
         self.model = load_model(path+'.h5')
         self.model_unet = load_model(path+'_unet.h5')
+        self.model_unetpp = load_model(path+'_unetpp.h5')
 
     def train(self, m_path, s_path, instrument):
         mix_path = traversalDir_FirstDir(m_path)
@@ -68,6 +79,21 @@ class Acapella:
 
         return self.model
 
+    def train_musdb(self, data):
+        smooth = 1.
+        dropout_rate = 0.5
+        act = "relu"
+
+        X, M = dataset(data)
+        print(X.shape, M['vocals'].shape)
+        self.model.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
+        self.model_unet.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
+        self.model_unetpp.fit(X[:20,:,:,:], M['vocals'][:20,:,:,:], batch_size=2, epochs=20)
+        self.saveWeights('./model')
+
+        return (self.model, self.model_unet, self.model_unetpp)
+
+
     def predict(self, file_path):
         #blstm
         audio, sampleRate = loadAudioFile(file_path)
@@ -91,7 +117,28 @@ class Acapella:
         expandedSpectrogram_unet = np.insert(newSpectrogram_unet, newSpectrogram_unet.shape[0], values=b, axis=0)
 
         return 1*newSpectrogram+0*expandedSpectrogram_unet[:,0:945]
+    
+    def predict_musdb(self, track):
 
+        X, M = dataset(track)
+        X_origin = stft(track[0].audio.T, nperseg=4096, noverlap=3072)[-1]
+
+        M_predict = self.model.predict(X)
+        # M2_predict = self.model_unet.predict(X)
+        # M3_predict = self.model_unetpp.predict(X)
+
+        print(M_predict.shape)
+
+        MM_predict = {'vocals': M_predict,
+                    'drums': M_predict,
+                    'bass': M_predict,
+                    'other':M_predict}
+        newM = ichop(X_origin, MM_predict)
+        estimates = estimateSpectro(X_origin, newM)
+        return estimates
+
+        
+        
 
 if __name__ == "__main__":
     # if data folder is specified, create a new data object and train on the data
@@ -101,7 +148,7 @@ if __name__ == "__main__":
     parser.add_argument("--data", default=None, type=str, help="Path containing training data")
     parser.add_argument("--split", default=0.9, type=float, help="Proportion of the data to train on")
     parser.add_argument("--epochs", default=10, type=int, help="Number of epochs to train.")
-    parser.add_argument("--weights", default="vocalsweights", type=str, help="h5 file to read/write weights to")
+    parser.add_argument("--weights", default="./model", type=str, help="h5 file to read/write weights to")
     parser.add_argument("--batch", default=8, type=int, help="Batch size for training")
     parser.add_argument("--phase", default=10, type=int, help="Phase iterations for reconstruction")
     parser.add_argument("--load", action='store_true', help="Load previous weights file before starting")
@@ -111,9 +158,24 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     acapellabot = Acapella()
+    mus = musdb.DB(download=True, subsets='train')
 
     if args.command == 'train':
         model = acapellabot.train('DSD100subset/Mixtures/Test', 'DSD100subset/Sources/Test', args.instrument)
+
+    if args.command == 'train_musdb':
+        (blstm, unet, unetpp) = acapellabot.train_musdb(mus[0:30])
+
+    if args.command == 'predict_musdb':
+
+        track = [mus[1]]
+
+        acapellabot.loadWeights(args.weights)
+        result = acapellabot.predict_musdb(track)
+
+        for target, estimate in result.items():
+            print(str(target)+str(estimate))
+            saveAudioFile(np.asfortranarray(estimate.T), "./result.wav")
 
     if args.command == 'predict':
         acapellabot.loadWeights(args.weights)
